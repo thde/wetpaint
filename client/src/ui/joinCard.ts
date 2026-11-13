@@ -1,11 +1,6 @@
 import type { Rgb } from '../protocol';
-import { prefs } from '../prefs';
 import { el } from './dom';
 import { Swatches } from './swatches';
-
-const NAME_KEY = 'wetpaint.name';
-const MAX_NAME = 16;
-const FALLBACK_NAME = 'little drop';
 
 /** The paper card you fill in before dropping onto the page. */
 export class JoinCard {
@@ -14,16 +9,8 @@ export class JoinCard {
   private readonly swatches = new Swatches('?', 'surprise me');
   private readonly button = el('button', 'sketch-button big', 'Drop in');
 
-  constructor(onJoin: (name: string, color: number) => void) {
+  constructor(onJoin: (color: number) => void) {
     const card = el('form', 'card join-card');
-    const input = el('input', 'name-input');
-    input.type = 'text';
-    input.maxLength = MAX_NAME;
-    input.placeholder = 'your name';
-    input.autocomplete = 'off';
-    input.spellcheck = false;
-    input.setAttribute('aria-label', 'your name');
-    input.value = prefs.get(NAME_KEY) ?? '';
 
     this.button.type = 'submit';
     this.button.disabled = true;
@@ -31,7 +18,6 @@ export class JoinCard {
     card.append(
       el('h1', 'title', 'Wet Paint'),
       el('p', 'tagline', 'you are one drop of watercolour. stay wet, leave a mark.'),
-      input,
       el('p', 'hint', 'pick a colour'),
       this.swatches.root,
       this.button,
@@ -39,11 +25,7 @@ export class JoinCard {
     );
     card.addEventListener('submit', (ev) => {
       ev.preventDefault();
-      // The server sanitises names properly; this only tidies whitespace.
-      const name = input.value.trim().slice(0, MAX_NAME) || FALLBACK_NAME;
-      prefs.set(NAME_KEY, name);
-      input.blur();
-      onJoin(name, this.swatches.selected);
+      onJoin(this.swatches.selected);
     });
     this.root.append(card);
   }

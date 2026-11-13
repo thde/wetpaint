@@ -32,14 +32,8 @@ const BRUSH = {
 
 describe('client messages', () => {
   it('encodes Join', () => {
-    expect(bytes(encodeJoin('Zoë', 3))).toEqual([0x01, 4, 0x5a, 0x6f, 0xc3, 0xab, 3]);
-    expect(bytes(encodeJoin('', COLOR_AUTO))).toEqual([0x01, 0, 255]);
-  });
-
-  it('never splits a code point when a name overflows the length byte', () => {
-    const out = bytes(encodeJoin('é'.repeat(200), 0));
-    expect(out[1]).toBe(254);
-    expect(out).toHaveLength(2 + 254 + 1);
+    expect(bytes(encodeJoin(0xcafef00d, 3))).toEqual([0x01, 0x0d, 0xf0, 0xfe, 0xca, 3]);
+    expect(bytes(encodeJoin(1, COLOR_AUTO))).toEqual([0x01, 1, 0, 0, 0, 255]);
   });
 
   it('encodes Input with signed components', () => {
@@ -61,7 +55,7 @@ describe('client messages', () => {
 describe('server messages', () => {
   it('decodes Welcome', () => {
     const zlib = Uint8Array.of(0x78, 0x9c, 1, 2, 3);
-    const frame = new Bytes().u8(0x81).u16(2).u32(3).u16(77).u32(123456);
+    const frame = new Bytes().u8(0x81).u16(3).u32(3).u16(77).u32(123456);
     frame.u8(TEST_CONSTANTS.length);
     for (const c of TEST_CONSTANTS) frame.f32(c);
     frame.u8(2).u8(255, 0, 10).u8(1, 2, 3);

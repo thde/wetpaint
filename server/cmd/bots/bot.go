@@ -39,7 +39,8 @@ type point struct{ x, y float64 }
 func (p point) dist(q point) float64 { return math.Hypot(p.x-q.x, p.y-q.y) }
 
 type bot struct {
-	name  string
+	name  string // for logs; the server picks the name players see
+	seed  uint32 // keeps the bot's name across reconnects
 	url   string
 	lazy  bool
 	rng   *rand.Rand
@@ -110,7 +111,7 @@ func (b *bot) play(ctx context.Context) error {
 	send := func(m protocol.ClientMessage) error {
 		return conn.Write(ctx, websocket.MessageBinary, m.Append(nil))
 	}
-	if err := send(protocol.Join{Name: b.name, Color: protocol.ColorRandom}); err != nil {
+	if err := send(protocol.Join{Seed: b.seed, Color: protocol.ColorRandom}); err != nil {
 		return fmt.Errorf("join: %w", err)
 	}
 

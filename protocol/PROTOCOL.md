@@ -1,4 +1,4 @@
-# Wet Paint wire protocol — version 2
+# Wet Paint wire protocol — version 3
 
 This document is the contract between the Go server (`server/internal/protocol`)
 and the TypeScript client (`client/src/protocol.ts`). Both sides implement it by
@@ -46,15 +46,19 @@ hand; change this file first, then both implementations, and bump `version`.
 
 | Type | Name    | Payload |
 |------|---------|---------|
-| 0x01 | Join    | `str name`, `u8 color` |
+| 0x01 | Join    | `u32 seed`, `u8 color` |
 | 0x02 | Input   | `u32 seq`, `i8 dx`, `i8 dy` |
 | 0x03 | Respawn | `u8 color` |
 | 0x04 | Ping    | `u32 clientTime` |
 | 0x05 | View    | `u16 w`, `u16 h` |
 | 0x06 | Resync  | *(none)* |
 
-- **Join** spawns the drop. `name` is at most 16 characters after server-side
-  sanitising (the server's version comes back in the `Spawn` event). `color` is
+- **Join** spawns the drop. The server names it: an adjective and a noun from
+  a fixed list, at most 16 characters, chosen by `seed`. Clients keep their
+  seed so returning players get the same name. If someone on the page already
+  has it, the seed's next choice is used (the same one each time); if those
+  are taken too, a random free name. The name comes back in the `Spawn` event
+  and lasts until disconnect. `color` is
   a palette index, or 255 for random. Ignored while already alive.
 - **Input** is the desired movement: `(dx, dy) / 127` is a vector whose length
   (clamped to 1) is the throttle. Pointer/touch control is converted by the
@@ -97,7 +101,7 @@ keep up with them is disconnected, because its paint grid would desync.
 ### 0x81 Welcome
 
 ```
-u16  version            (= 2)
+u16  version            (= 3)
 u32  page               sketchbook page number, from 1
 u16  yourID
 u32  tick               server tick of this snapshot

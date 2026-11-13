@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand/v2"
 
+	"github.com/thde/wetpaint/server/internal/names"
 	"github.com/thde/wetpaint/server/internal/paint"
 	"github.com/thde/wetpaint/server/internal/protocol"
 )
@@ -133,14 +134,33 @@ func (w *World) RemovePlayer(p *Player) {
 	}
 }
 
-// Join spawns p's drop under an already sanitised name. It is ignored while
-// the drop is alive.
-func (w *World) Join(p *Player, name string, color uint8) {
+// Join spawns p's drop. A player without a name gets the one its client's
+// seed stands for, or that seed's next choice if someone on the page already
+// has it, and keeps it for as long as it is connected. If the seed's choices
+// are all taken (many clients sharing a seed), a random free name is used.
+// Join is ignored while the drop is alive.
+func (w *World) Join(p *Player, seed uint32, color uint8) {
 	if p.Alive {
 		return
 	}
-	p.Name, p.joined = name, true
+	if p.Name == "" {
+		p.Name = names.FromSeed(seed, w.nameTaken)
+		if w.nameTaken(p.Name) {
+			p.Name = names.Generate(w.rng, w.nameTaken)
+		}
+	}
+	p.joined = true
 	w.spawn(p, color)
+}
+
+// nameTaken reports whether a player on the page is called name.
+func (w *World) nameTaken(name string) bool {
+	for _, q := range w.players {
+		if q.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Respawn spawns p's drop again after death, keeping its name.

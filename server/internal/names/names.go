@@ -1,78 +1,66 @@
-// Package names cleans up player-supplied names.
+// Package names generates player names. Players cannot choose their own: the
+// game shows names to strangers, and a fixed vocabulary needs no moderation.
 package names
 
-import (
-	"regexp"
-	"strings"
-	"unicode"
+import "math/rand/v2"
+
+// MaxLen is the longest generated name, in characters.
+const MaxLen = 16
+
+// Adjectives and nouns are combined as "Adjective Noun". Each adjective is at
+// most 7 letters and each noun at most 8, so every name fits in MaxLen. Colour
+// words are left out on purpose: "Cobalt" on a red drop reads as a bug.
+var (
+	adjectives = []string{
+		"Bashful", "Bold", "Bouncy", "Brave", "Breezy", "Bubbly", "Busy", "Calm",
+		"Cheery", "Chilly", "Clever", "Cloudy", "Cosy", "Curious", "Daring", "Dapper",
+		"Damp", "Dewy", "Dizzy", "Dreamy", "Drifty", "Drippy", "Dusky", "Fancy",
+		"Fizzy", "Floaty", "Foggy", "Frosty", "Fuzzy", "Gentle", "Giddy", "Glassy",
+		"Glossy", "Hazy", "Humble", "Jolly", "Lazy", "Little", "Lucky", "Mellow",
+		"Merry", "Misty", "Nimble", "Plucky", "Quiet", "Rainy", "Runny", "Shiny",
+		"Shy", "Silky", "Sleepy", "Smudgy", "Snowy", "Soft", "Soggy", "Splashy",
+		"Spry", "Stormy", "Sunny", "Swift", "Tiny", "Watery", "Wobbly", "Zippy",
+	}
+	nouns = []string{
+		"Bead", "Blob", "Bloom", "Blot", "Bristle", "Brook", "Brush", "Bubble",
+		"Canvas", "Cloud", "Comet", "Dab", "Dewdrop", "Doodle", "Dot", "Dribble",
+		"Drip", "Drizzle", "Drop", "Droplet", "Easel", "Fern", "Fleck", "Fountain",
+		"Glaze", "Hue", "Inkblot", "Inkwell", "Lily", "Mist", "Moss", "Palette",
+		"Paper", "Pebble", "Petal", "Pigment", "Pond", "Puddle", "Puff", "Rain",
+		"Raindrop", "Ripple", "Scribble", "Sketch", "Smudge", "Speck", "Splash", "Splatter",
+		"Splotch", "Spray", "Sprinkle", "Spritz", "Squiggle", "Streak", "Stream", "Swirl",
+		"Teardrop", "Tide", "Tint", "Trickle", "Wash", "Wave", "Whirl", "Wisp",
+	}
 )
 
-const (
-	// MaxLen is the longest name, in characters.
-	MaxLen = 16
-	// Fallback is used when nothing printable is left.
-	Fallback = "a little drop"
-)
+// Count is the number of distinct names.
+var Count = len(adjectives) * len(nouns)
 
-var tag = regexp.MustCompile(`<[^>]*>`)
+// attempts bounds the search for an unused name. With a few dozen names taken
+// out of thousands, the first draw almost always succeeds.
+const attempts = 16
 
-// blocked is a deliberately small list; the game shows names to strangers.
-var blocked = []string{
-	"fuck", "shit", "bitch", "cunt", "nigger", "nigga", "faggot",
-	"whore", "slut", "nazi", "hitler",
+// FromSeed returns the name seed stands for. A client keeps its seed to keep
+// its name across visits. If that name is taken, the seed's next choices are
+// tried, so the same seed still gets the same fallback.
+func FromSeed(seed uint32, taken func(string) bool) string {
+	return Generate(rand.New(rand.NewPCG(uint64(seed), seedStream)), taken)
 }
 
-// leet folds common look-alike characters before matching blocked words.
-var leet = strings.NewReplacer("0", "o", "1", "i", "3", "e", "4", "a", "5", "s", "@", "a", "$", "s", "!", "i")
+// seedStream fixes the mapping from seeds to names. Changing it renames every
+// returning player.
+const seedStream = 0x7765747061696e74 // "wetpaint"
 
-// Sanitize strips HTML and control characters, collapses whitespace, masks
-// blocked words and truncates to MaxLen characters. It never returns an empty
-// string.
-func Sanitize(name string) string {
-	name = strings.ToValidUTF8(name, "")
-	name = tag.ReplaceAllString(name, "")
-	name = strings.Map(func(r rune) rune {
-		switch {
-		case r == '<' || r == '>' || r == '&' || r == '"' || r == '\'' || r == '`':
-			return -1
-		case unicode.IsSpace(r):
-			return ' '
-		case !unicode.IsPrint(r):
-			return -1
+// Generate returns a random name for which taken reports false, if one turns
+// up within a few draws; otherwise it returns a name that may be in use.
+// taken may be nil.
+func Generate(rng *rand.Rand, taken func(string) bool) string {
+	var name string
+	for range attempts {
+		name = adjectives[rng.IntN(len(adjectives))] + " " + nouns[rng.IntN(len(nouns))]
+		if taken == nil || !taken(name) {
+			break
 		}
-		return r
-	}, name)
-
-	runes := []rune(strings.Join(strings.Fields(name), " "))
-	if len(runes) > MaxLen {
-		runes = runes[:MaxLen]
-	}
-	runes = mask(runes)
-
-	if name = strings.TrimSpace(string(runes)); name == "" {
-		return Fallback
 	}
 	return name
-}
-
-// mask replaces every blocked word in runes with asterisks, in place.
-func mask(runes []rune) []rune {
-	// Fold rune by rune so indexes in folded line up with runes.
-	folded := make([]rune, len(runes))
-	for i, r := range runes {
-		f := []rune(leet.Replace(string(unicode.ToLower(r))))
-		folded[i] = f[0]
-	}
-	for _, word := range blocked {
-		w := []rune(word)
-		for i := 0; i+len(w) <= len(folded); i++ {
-			if string(folded[i:i+len(w)]) != word {
-				continue
-			}
-			for j := range w {
-				runes[i+j], folded[i+j] = '*', '*'
-			}
-		}
-	}
-	return runes
 }

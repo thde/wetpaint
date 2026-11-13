@@ -182,25 +182,6 @@ input:focus-visible {
   font-size: 15px;
 }
 
-.name-input {
-  width: 100%;
-  padding: 4px 8px;
-  background: none;
-  border: none;
-  border-bottom: 2.5px solid var(--pencil);
-  border-radius: 0 0 40px 12px / 0 0 6px 4px;
-  color: inherit;
-  font: inherit;
-  font-size: 26px;
-  text-align: center;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.name-input::placeholder {
-  color: rgba(85, 81, 92, 0.35);
-}
-
 .swatches {
   display: flex;
   flex-wrap: wrap;

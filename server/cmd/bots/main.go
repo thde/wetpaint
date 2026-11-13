@@ -88,6 +88,7 @@ func run(log *slog.Logger, args []string) error {
 	for i := range *n {
 		b := &bot{
 			name:  fmt.Sprintf("bot %d", i+1),
+			seed:  rand.Uint32(),
 			url:   *url,
 			lazy:  *lazy,
 			rng:   rand.New(rand.NewPCG(rand.Uint64(), uint64(i))),

@@ -11,7 +11,7 @@ import (
 )
 
 // Version is the protocol version announced in Welcome.
-const Version = 2
+const Version = 3
 
 // Message type bytes.
 const (
@@ -86,9 +86,9 @@ type ClientMessage interface {
 	clientMessage()
 }
 
-// Join spawns the connection's drop.
+// Join spawns the connection's drop. The server derives its name from Seed.
 type Join struct {
-	Name  string
+	Seed  uint32
 	Color uint8
 }
 
@@ -119,7 +119,7 @@ func (Resync) clientMessage()  {}
 
 // Append implements ClientMessage.
 func (m Join) Append(b []byte) []byte {
-	return append(appendStr(append(b, TypeJoin), m.Name), m.Color)
+	return append(appendU32(append(b, TypeJoin), m.Seed), m.Color)
 }
 
 // Append implements ClientMessage.
@@ -147,7 +147,7 @@ func DecodeClient(frame []byte) (ClientMessage, error) {
 	var m ClientMessage
 	switch r.u8() {
 	case TypeJoin:
-		m = Join{Name: r.str(), Color: r.u8()}
+		m = Join{Seed: r.u32(), Color: r.u8()}
 	case TypeInput:
 		m = Input{Seq: r.u32(), DX: int8(r.u8()), DY: int8(r.u8())}
 	case TypeRespawn:

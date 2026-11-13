@@ -7,6 +7,7 @@ import { inflate } from './inflate';
 import { GridSync } from './gridSync';
 import { Input } from './input';
 import type { Vec2 } from './interpolation';
+import { nameSeed } from './nameSeed';
 import { Connection, type CloseReason } from './net';
 import { Predictor } from './prediction';
 import {
@@ -78,7 +79,7 @@ export class Game {
   private epoch = 0;
 
   /** Set once the player has dropped in; survives reconnects. */
-  private player: { name: string; color: number } | null = null;
+  private player: { seed: number; color: number } | null = null;
   private onDeathCard = false;
 
   private lastFrameMs = 0;
@@ -90,7 +91,7 @@ export class Game {
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.renderer = new Renderer(canvas, this.camera, this.grain);
     this.input = new Input(canvas, this.camera);
-    this.joinCard = new JoinCard((name, color) => this.dropIn(name, color));
+    this.joinCard = new JoinCard((color) => this.dropIn(color));
     this.deathCard = new DeathCard((color) => this.dripAgain(color));
     this.hud = new Hud(this.sfx.muted, {
       toggleMute: () => this.sfx.toggleMuted(),
@@ -124,10 +125,10 @@ export class Game {
 
   // --- player actions -----------------------------------------------------
 
-  private dropIn(name: string, color: number): void {
+  private dropIn(color: number): void {
     if (!this.session) return;
     this.sfx.unlock();
-    this.player = { name, color };
+    this.player = { seed: nameSeed(), color };
     this.setSpectating(false);
     this.join(this.session);
   }
@@ -144,7 +145,7 @@ export class Game {
 
   private join(session: Session): void {
     if (!this.player) return;
-    this.conn.send(encodeJoin(this.player.name, this.player.color));
+    this.conn.send(encodeJoin(this.player.seed, this.player.color));
     session.joined = true;
   }
 

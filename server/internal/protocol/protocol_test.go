@@ -10,8 +10,8 @@ import (
 func TestClientRoundTrip(t *testing.T) {
 	t.Parallel()
 	msgs := []ClientMessage{
-		Join{Name: "Plip 💧", Color: 3},
-		Join{Name: "", Color: ColorRandom},
+		Join{Seed: 0xCAFEF00D, Color: 3},
+		Join{Seed: 0, Color: ColorRandom},
 		Input{Seq: 0xDEADBEEF, DX: -127, DY: 127},
 		Respawn{Color: ColorRandom},
 		Ping{ClientTime: 123456},

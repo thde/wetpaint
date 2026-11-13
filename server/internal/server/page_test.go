@@ -120,7 +120,7 @@ func TestGridChecksMatchAGridBuiltFromTheWire(t *testing.T) {
 	t.Parallel()
 	p := newTestPage(t)
 	early := seat(t, p)
-	early.send(protocol.Join{Name: "early", Color: 1})
+	early.send(protocol.Join{Seed: 1, Color: 1})
 	painter := &mirror{t: t}
 	var late *testClient
 	watcher := &mirror{t: t} // joins once the page is painted and partly faded
@@ -163,7 +163,7 @@ func TestResyncSendsAFreshGridAtMostEveryTenSeconds(t *testing.T) {
 	t.Parallel()
 	p := newTestPage(t)
 	c := seat(t, p)
-	c.send(protocol.Join{Name: "drifter", Color: 4})
+	c.send(protocol.Join{Seed: 1, Color: 4})
 	m := &mirror{t: t}
 	grids := func(msgs []protocol.ServerMessage) (n int) {
 		for _, msg := range msgs {
@@ -229,8 +229,8 @@ func TestPageSeatsPlayersAndSpectatorsSeparately(t *testing.T) {
 		t.Error("page with a free player seat and free spectator seats has no room")
 	}
 
-	a.send(protocol.Join{Name: "a", Color: 0})
-	a.send(protocol.Join{Name: "a", Color: 0}) // a second Join takes no second seat
+	a.send(protocol.Join{Seed: 1, Color: 0})
+	a.send(protocol.Join{Seed: 1, Color: 0}) // a second Join takes no second seat
 	if got, want := seated(p), (seatCount{players: game.PageCap, spectators: 1}); got != want {
 		t.Errorf("seats after the last player joined = %+v, want %+v", got, want)
 	}
@@ -238,14 +238,14 @@ func TestPageSeatsPlayersAndSpectatorsSeparately(t *testing.T) {
 		t.Error("full page still takes connections")
 	}
 
-	b.send(protocol.Join{Name: "b", Color: 0})
+	b.send(protocol.Join{Seed: 1, Color: 0})
 	if len(b.closed) != 1 || b.closed[0] != protocol.CloseFull {
 		t.Errorf("Join on a full page: close codes %v, want [%d]", b.closed, protocol.CloseFull)
 	}
 	if b.c.player.Alive {
 		t.Error("the refused player spawned anyway")
 	}
-	b.send(protocol.Join{Name: "b", Color: 0}) // ignored while closing
+	b.send(protocol.Join{Seed: 1, Color: 0}) // ignored while closing
 	if len(b.closed) != 1 {
 		t.Errorf("closed %d times", len(b.closed))
 	}
@@ -273,7 +273,7 @@ func TestIdleConnectionsAreClosed(t *testing.T) {
 	p := newTestPage(t)
 	idle := game.Ticks(game.IdleSeconds)
 	spectator, player := seat(t, p), seat(t, p)
-	player.send(protocol.Join{Name: "busy", Color: 0})
+	player.send(protocol.Join{Seed: 1, Color: 0})
 
 	// tick advances the page; the player respawns at once while keen.
 	keen := true
@@ -340,7 +340,7 @@ func BenchmarkTickFullPage(b *testing.B) {
 		c := newClient(nil, func() {})
 		c.close = func(websocket.StatusCode, string) {}
 		p.handle(command{kind: cmdConnect, client: c})
-		p.handle(command{kind: cmdMessage, client: c, msg: protocol.Join{Name: "bench", Color: uint8(i % 10)}})
+		p.handle(command{kind: cmdMessage, client: c, msg: protocol.Join{Seed: 1, Color: uint8(i % 10)}})
 		clients = append(clients, c)
 		go func() { // stands in for writeLoop
 			for {

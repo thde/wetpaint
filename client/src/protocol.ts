@@ -1,7 +1,7 @@
-// Wire protocol, version 2. The contract is protocol/PROTOCOL.md; this file
+// Wire protocol, version 3. The contract is protocol/PROTOCOL.md; this file
 // only translates between bytes and plain objects.
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Colour index meaning "random" in Join and "keep" in Respawn. */
 export const COLOR_AUTO = 255;
@@ -243,7 +243,6 @@ export type ServerMessage =
   | Grid;
 
 const utf8Decoder = new TextDecoder();
-const utf8Encoder = new TextEncoder();
 
 class Reader {
   private readonly view: DataView;
@@ -489,23 +488,13 @@ export function decodeServerMessage(buf: ArrayBuffer): ServerMessage {
   }
 }
 
-function encodeStr(s: string): Uint8Array {
-  const bytes = utf8Encoder.encode(s);
-  if (bytes.length <= 255) return bytes;
-  // Cut on a code point boundary: back off over UTF-8 continuation bytes.
-  let end = 255;
-  while (end > 0 && (bytes[end] & 0xc0) === 0x80) end--;
-  return bytes.subarray(0, end);
-}
-
-export function encodeJoin(name: string, color: number): ArrayBuffer {
-  const nameBytes = encodeStr(name);
-  const out = new Uint8Array(3 + nameBytes.length);
-  out[0] = ClientMsg.Join;
-  out[1] = nameBytes.length;
-  out.set(nameBytes, 2);
-  out[2 + nameBytes.length] = color;
-  return out.buffer;
+/** The server derives the name from `seed`. */
+export function encodeJoin(seed: number, color: number): ArrayBuffer {
+  const v = new DataView(new ArrayBuffer(6));
+  v.setUint8(0, ClientMsg.Join);
+  v.setUint32(1, seed >>> 0, true);
+  v.setUint8(5, color);
+  return v.buffer;
 }
 
 /** `dx`, `dy` are already quantised to [-127, 127]. */

@@ -12,7 +12,6 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/thde/wetpaint/server/internal/game"
-	"github.com/thde/wetpaint/server/internal/names"
 	"github.com/thde/wetpaint/server/internal/paint"
 	"github.com/thde/wetpaint/server/internal/protocol"
 	"github.com/thde/wetpaint/server/internal/store"
@@ -170,7 +169,7 @@ func (p *Page) handle(cmd command) {
 				}
 				c.joined = true
 			}
-			p.world.Join(c.player, names.Sanitize(m.Name), m.Color)
+			p.world.Join(c.player, m.Seed, m.Color)
 		case protocol.Respawn:
 			p.world.Respawn(c.player, m.Color)
 		case protocol.Input:

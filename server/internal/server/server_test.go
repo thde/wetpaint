@@ -147,12 +147,13 @@ func TestConnectJoinAndPlay(t *testing.T) {
 		t.Error("spectator state says alive")
 	}
 
-	send(t, conn, protocol.Join{Name: "<b>Pip</b>", Color: 2})
+	send(t, conn, protocol.Join{Seed: 1, Color: 2})
+	var name string
 	readUntil(t, conn, func(ev *protocol.Events) bool {
 		for _, e := range ev.Events {
 			if s, ok := e.(protocol.Spawn); ok && s.ID == welcome.YourID {
-				if s.Name != "Pip" {
-					t.Errorf("spawned as %q, want sanitised %q", s.Name, "Pip")
+				if name = s.Name; name == "" {
+					t.Error("spawned without a name")
 				}
 				return true
 			}
@@ -186,7 +187,7 @@ func TestConnectJoinAndPlay(t *testing.T) {
 	}
 
 	lb := readUntil(t, conn, func(lb *protocol.Leaderboard) bool { return len(lb.Boards[protocol.BoardLivePainted]) > 0 })
-	if e := lb.Boards[protocol.BoardLivePainted][0]; e.Name != "Pip" || e.Value == 0 {
+	if e := lb.Boards[protocol.BoardLivePainted][0]; e.Name != name || e.Value == 0 {
 		t.Errorf("live board = %+v", lb.Boards[protocol.BoardLivePainted])
 	}
 
@@ -219,7 +220,7 @@ func TestOthersSeeEachOther(t *testing.T) {
 	if wa.YourID == wb.YourID {
 		t.Fatal("two connections share an ID")
 	}
-	send(t, a, protocol.Join{Name: "ann", Color: protocol.ColorRandom})
+	send(t, a, protocol.Join{Seed: 1, Color: protocol.ColorRandom})
 
 	// b is a spectator and therefore sees a wherever it spawned.
 	st := readUntil(t, b, func(st *protocol.State) bool { return len(st.Drops) == 1 })
@@ -342,7 +343,7 @@ func TestFullPageSpillsOntoANewOne(t *testing.T) {
 		if w := readUntil(t, conn, anyMessage[*protocol.Welcome]); w.Page != 1 {
 			t.Fatalf("landed on page %d while page 1 had room", w.Page)
 		}
-		send(t, conn, protocol.Join{Name: "crowd", Color: protocol.ColorRandom})
+		send(t, conn, protocol.Join{Seed: 1, Color: protocol.ColorRandom})
 		waitSeats(t, ts.hub.page(1), seatCount{players: i + 1})
 		keepAlive(conn)
 	}
@@ -404,11 +405,11 @@ func TestJoinOnFullPageClosesWithPageFull(t *testing.T) {
 	// Two spectators watch a page with one player seat left.
 	setSeats(page, game.PageCap-1, 2)
 
-	send(t, a, protocol.Join{Name: "first", Color: 0})
+	send(t, a, protocol.Join{Seed: 1, Color: 0})
 	waitSeats(t, page, seatCount{players: game.PageCap, spectators: 1})
 	readUntil(t, a, func(st *protocol.State) bool { return st.Alive })
 
-	send(t, b, protocol.Join{Name: "second", Color: 0})
+	send(t, b, protocol.Join{Seed: 1, Color: 0})
 	expectClosed(t, b, 2*time.Second, protocol.CloseFull)
 	waitSeats(t, page, seatCount{players: game.PageCap})
 
@@ -451,7 +452,7 @@ func TestPaintSurvivesRestart(t *testing.T) {
 	ts := startServer(t, s)
 	conn := ts.dial("")
 	readUntil(t, conn, anyMessage[*protocol.Welcome])
-	send(t, conn, protocol.Join{Name: "painter", Color: 0})
+	send(t, conn, protocol.Join{Seed: 1, Color: 0})
 	var lastPaintTick uint32
 	for seq := uint32(1); lastPaintTick == 0; seq++ {
 		send(t, conn, protocol.Input{Seq: seq, DX: 0, DY: 127})

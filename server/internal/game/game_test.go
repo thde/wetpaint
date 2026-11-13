@@ -18,10 +18,11 @@ func newTestWorld(opts Options) *World {
 	return NewWorld(rand.New(rand.NewPCG(7, 11)), opts)
 }
 
-// addDrop joins a player and puts its drop at a known spot.
+// addDrop joins a player under a known name and puts its drop at a known spot.
 func addDrop(w *World, name string, x, y, wetness float64) *Player {
 	p := w.AddPlayer()
-	w.Join(p, name, 0)
+	p.Name = name
+	w.Join(p, 0, 0)
 	p.X, p.Y, p.Wetness = x, y, wetness
 	return p
 }
@@ -831,13 +832,13 @@ func TestJoinRespawnAndLeave(t *testing.T) {
 		t.Fatal("Respawn before Join spawned a drop")
 	}
 
-	w.Join(p, "pip", 4)
-	if !p.Alive || p.Wetness != MaxWetness || p.Color != colorOf(Palette()[4]) {
+	w.Join(p, 1, 4)
+	if !p.Alive || p.Wetness != MaxWetness || p.Color != colorOf(Palette()[4]) || p.Name == "" {
 		t.Fatalf("after Join: %+v", p)
 	}
-	x, y := p.X, p.Y
-	w.Join(p, "other", 2)
-	if p.Name != "pip" || p.X != x || p.Y != y {
+	name, x, y := p.Name, p.X, p.Y
+	w.Join(p, 2, 2)
+	if p.Name != name || p.X != x || p.Y != y || p.Color != colorOf(Palette()[4]) {
 		t.Error("Join while alive was not ignored")
 	}
 
@@ -846,12 +847,12 @@ func TestJoinRespawnAndLeave(t *testing.T) {
 	if len(deaths) != 1 || p.Alive {
 		t.Fatalf("deaths = %+v", deaths)
 	}
-	if want := (protocol.Spawn{ID: p.ID, Name: "pip"}); events[0] != want {
+	if want := (protocol.Spawn{ID: p.ID, Name: name}); events[0] != want {
 		t.Errorf("first event = %#v, want %#v", events[0], want)
 	}
 
 	w.Respawn(p, protocol.ColorRandom)
-	if !p.Alive || p.Color != colorOf(Palette()[4]) || p.Name != "pip" || p.CellsPainted != 0 {
+	if !p.Alive || p.Color != colorOf(Palette()[4]) || p.Name != name || p.CellsPainted != 0 {
 		t.Errorf("after Respawn keeping colour: %+v", p)
 	}
 
@@ -900,7 +901,7 @@ func newCrowd(seed uint64, n int) *crowd {
 	}
 	for range n {
 		p := c.w.AddPlayer()
-		c.w.Join(p, "bot", protocol.ColorRandom)
+		c.w.Join(p, rand.Uint32(), protocol.ColorRandom)
 		c.players = append(c.players, p)
 	}
 	return c
@@ -1020,5 +1021,19 @@ func BenchmarkStepFullPage(b *testing.B) {
 			c.w.FillState(&st, p)
 			buf = st.Append(buf[:0])
 		}
+	}
+}
+
+func TestJoinGivesEachPlayerItsOwnName(t *testing.T) {
+	t.Parallel()
+	w := newTestWorld(calm)
+	seen := make(map[string]bool)
+	for range PageCap {
+		p := w.AddPlayer()
+		w.Join(p, 42, protocol.ColorRandom) // everyone asks for the same name
+		if p.Name == "" || seen[p.Name] {
+			t.Fatalf("player %d joined as %q", p.ID, p.Name)
+		}
+		seen[p.Name] = true
 	}
 }
