@@ -13,20 +13,20 @@ type Player struct {
 	Wetness      float64
 	Color        Color // as it looks now, after bleeding
 
-	AckSeq       uint32 // seq of the last input applied
+	AckSeq       uint32 // seq of the last input applied or skipped
 	CellsPainted uint32 // this life
 	ColorsMixed  uint16 // this life
 
-	joined     bool // has sent Join, so Respawn is allowed
-	palette    uint8
-	ownColor   Color // the palette colour chosen at spawn; Color drifts back to it
-	touched    bool  // overlapped another drop this tick
-	dx, dy     int8
-	pendingSeq uint32
-	viewW      float64
-	viewH      float64
-	bornTick   uint32
-	bumpUntil  uint32 // immune to beetles before this tick
+	joined    bool // has sent Join, so Respawn is allowed
+	palette   uint8
+	ownColor  Color      // the palette colour chosen at spawn; Color drifts back to it
+	touched   bool       // overlapped another drop this tick
+	dx, dy    int8       // the input being applied; repeated while none are queued
+	inputs    inputQueue // received, not yet applied
+	viewW     float64
+	viewH     float64
+	bornTick  uint32
+	bumpUntil uint32 // immune to beetles before this tick
 }
 
 // Radius is the drop's size, which grows with wetness.
@@ -35,9 +35,26 @@ func (p *Player) Radius() float64 { return RadiusBase + p.Wetness*RadiusPerWetne
 // Speed is the drop's current speed in units per second.
 func (p *Player) Speed() float64 { return math.Hypot(p.VX, p.VY) }
 
+// nextInput takes this tick's input from the queue: the oldest one, after
+// cutting an overlong backlog (see InputBuffer). Skipped inputs count as
+// acknowledged. With nothing queued the previous input is repeated and
+// AckSeq stays put, so the client does not count the step as one of its own.
+func (p *Player) nextInput() {
+	if p.inputs.len() > 1+InputBuffer+InputSlack {
+		for p.inputs.len() > 1+InputBuffer {
+			p.AckSeq = p.inputs.pop().seq
+		}
+	}
+	if p.inputs.len() > 0 {
+		in := p.inputs.pop()
+		p.dx, p.dy, p.AckSeq = in.dx, in.dy, in.seq
+	}
+}
+
 // move advances the drop one tick. This is the movement step of the protocol
 // document, which clients replicate for prediction; change both together.
 func (p *Player) move() {
+	p.nextInput()
 	dx, dy := float64(p.dx)/127, float64(p.dy)/127
 	if l := math.Hypot(dx, dy); l > 1 {
 		dx, dy = dx/l, dy/l
@@ -52,8 +69,44 @@ func (p *Player) move() {
 	r := p.Radius()
 	p.X, p.VX = clampAxis(p.X, p.VX, r, WorldW-r)
 	p.Y, p.VY = clampAxis(p.Y, p.VY, r, WorldH-r)
-	p.AckSeq = p.pendingSeq
 }
+
+type queuedInput struct {
+	seq    uint32
+	dx, dy int8
+}
+
+// inputQueueCap bounds a drop's queue regardless of InputBuffer, so a client
+// flooding Inputs between two steps holds a fixed amount of memory.
+const inputQueueCap = 8
+
+// inputQueue is a fixed ring of Inputs; pushing onto a full queue drops the
+// oldest, which nextInput would have skipped anyway.
+type inputQueue struct {
+	buf  [inputQueueCap]queuedInput
+	head int
+	n    int
+}
+
+func (q *inputQueue) len() int { return q.n }
+
+func (q *inputQueue) push(in queuedInput) {
+	if q.n == len(q.buf) {
+		q.pop()
+	}
+	q.buf[(q.head+q.n)%len(q.buf)] = in
+	q.n++
+}
+
+// pop removes and returns the oldest input. The queue must not be empty.
+func (q *inputQueue) pop() queuedInput {
+	in := q.buf[q.head]
+	q.head = (q.head + 1) % len(q.buf)
+	q.n--
+	return in
+}
+
+func (q *inputQueue) clear() { q.head, q.n = 0, 0 }
 
 func clampAxis(pos, vel, lo, hi float64) (newPos, newVel float64) {
 	switch {

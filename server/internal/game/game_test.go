@@ -180,6 +180,95 @@ func TestMovementHasInertiaAndStopsAtEdges(t *testing.T) {
 	}
 }
 
+// feed sends arrivals[i] consecutive Inputs before step i and returns the
+// AckSeq after each step.
+func feed(w *World, p *Player, seq *uint32, arrivals []int) []uint32 {
+	acks := make([]uint32, len(arrivals))
+	for i, n := range arrivals {
+		for range n {
+			*seq++
+			w.SetInput(p, *seq, 127, 0)
+		}
+		w.Step()
+		acks[i] = p.AckSeq
+	}
+	return acks
+}
+
+func TestInputsAppliedOnePerStepDespiteJitter(t *testing.T) {
+	t.Parallel()
+	w := newTestWorld(calm)
+	p := addDrop(w, "p", 2000, 1500, 50)
+	var seq uint32
+
+	// Inputs sent once per client tick but arriving unevenly around the
+	// server's tick boundary: none, then two, then one at a time with
+	// further 0/2 wobbles. This is what a 60 fps client produced against
+	// the old latest-input-wins rule, acknowledging 0 or 2 inputs per step.
+	arrivals := []int{1, 1, 0, 2, 1, 1, 0, 2, 1, 2, 0, 1, 1, 1}
+	acks := feed(w, p, &seq, arrivals)
+
+	// The first gap empties the queue: that step repeats the last input
+	// without acknowledging anything. From then on an input stays buffered,
+	// late (0, 2) and early (2, 0) arrivals are both absorbed, and every
+	// step acknowledges exactly one.
+	want := []uint32{1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
+	for i := range want {
+		if acks[i] != want[i] {
+			t.Fatalf("AckSeq after each step = %v, want %v", acks, want)
+		}
+	}
+}
+
+func TestInputBurstAfterStallIsTrimmed(t *testing.T) {
+	t.Parallel()
+	w := newTestWorld(calm)
+	p := addDrop(w, "p", 2000, 1500, 50)
+	var seq uint32
+
+	// A ~0.5 s stall (as on congested Wi-Fi) followed by the held-back
+	// inputs arriving at once.
+	feed(w, p, &seq, []int{1, 0, 0, 0, 0, 0, 0, 0, 0})
+	if p.AckSeq != 1 || p.Speed() < 0.5*SpeedMin {
+		t.Fatalf("during the stall: AckSeq %d, speed %.0f; want 1 and the drop still coasting", p.AckSeq, p.Speed())
+	}
+	burstLast := seq + 10
+	acks := feed(w, p, &seq, []int{10, 1, 1})
+
+	// The backlog is cut back to InputBuffer at once, so the server trails
+	// the client by InputBuffer inputs rather than half a second.
+	if got, want := acks[0], burstLast-InputBuffer; got != want {
+		t.Errorf("after the burst AckSeq = %d, want %d", got, want)
+	}
+	if acks[1]-acks[0] != 1 || acks[2]-acks[1] != 1 || p.inputs.len() != InputBuffer {
+		t.Errorf("acks %v, %d queued; want single steps with %d buffered", acks, p.inputs.len(), InputBuffer)
+	}
+}
+
+func TestInputQueueIsBoundedAndClearedOnRespawn(t *testing.T) {
+	t.Parallel()
+	w := newTestWorld(calm)
+	p := addDrop(w, "p", 2000, 1500, 50)
+	for seq := range uint32(100) {
+		w.SetInput(p, seq+1, 127, 0)
+	}
+	if p.inputs.len() != inputQueueCap {
+		t.Errorf("%d inputs queued, want the cap %d", p.inputs.len(), inputQueueCap)
+	}
+	w.Step()
+	if want := uint32(100 - InputBuffer); p.AckSeq != want || p.inputs.len() != InputBuffer {
+		t.Errorf("AckSeq = %d with %d queued, want %d with %d", p.AckSeq, p.inputs.len(), want, InputBuffer)
+	}
+
+	// Steering sent just before dying must not move the next life.
+	w.SetInput(p, 101, 127, 0)
+	w.kill(p, protocol.CauseDried, 0)
+	w.Respawn(p, protocol.ColorRandom)
+	if p.inputs.len() != 0 || p.dx != 0 {
+		t.Errorf("%d inputs and dx %d survived a respawn", p.inputs.len(), p.dx)
+	}
+}
+
 func TestCanAbsorb(t *testing.T) {
 	t.Parallel()
 	drop := func(wetness float64) *Player { return &Player{Wetness: wetness, Alive: true} }

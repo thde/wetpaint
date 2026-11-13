@@ -155,9 +155,11 @@ func (w *World) Respawn(p *Player, color uint8) {
 	w.spawn(p, color)
 }
 
-// SetInput records p's desired movement; the latest one before a step wins.
+// SetInput queues one of p's Inputs. Each step applies one queued input in
+// order (see [Player.nextInput]), so the server steps the drop exactly as
+// often as the client predicted it, even when Inputs arrive unevenly.
 func (w *World) SetInput(p *Player, seq uint32, dx, dy int8) {
-	p.pendingSeq, p.dx, p.dy = seq, dx, dy
+	p.inputs.push(queuedInput{seq: seq, dx: dx, dy: dy})
 }
 
 // SetView records p's viewport size in world units, used for culling.
@@ -175,6 +177,7 @@ func (w *World) spawn(p *Player, color uint8) {
 	p.Color = p.ownColor
 	p.X, p.Y = w.safeSpot()
 	p.VX, p.VY, p.dx, p.dy = 0, 0, 0, 0
+	p.inputs.clear() // steering meant for the previous life
 	p.Wetness = MaxWetness
 	p.CellsPainted, p.ColorsMixed = 0, 0
 	p.bornTick, p.bumpUntil = w.tick, 0

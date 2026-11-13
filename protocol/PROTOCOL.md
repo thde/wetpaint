@@ -59,8 +59,14 @@ hand; change this file first, then both implementations, and bump `version`.
 - **Input** is the desired movement: `(dx, dy) / 127` is a vector whose length
   (clamped to 1) is the throttle. Pointer/touch control is converted by the
   client into this vector (direction to the pointer, throttle easing to 0 as the
-  drop arrives). `seq` increases by 1 per message. The server applies the most
-  recent input each tick.
+  drop arrives). `seq` increases by 1 per message. Send one per tick: the
+  server queues Inputs and applies exactly one per tick, in order, so the drop
+  takes one step per Input however unevenly they arrive. With none queued it
+  repeats the previous Input without acknowledging it. If more than 3 are
+  queued when a tick starts, the oldest are skipped (and count as
+  acknowledged) until 2 remain. After a late Input the queue therefore settles
+  one Input deep, absorbing a tick of jitter either way. A new life starts with
+  an empty queue.
 - **Respawn** is Join after death, keeping the name. 255 keeps the old colour.
 - **Ping** is echoed as `Pong`.
 - **Resync** asks for a fresh `Grid` after a `GridCheck` mismatch. The server
@@ -110,7 +116,7 @@ u32  zlen  ; u8 × zlen             zlib stream, see "Paint grid"
 
 ```
 u32  tick
-u32  ackSeq             seq of the last Input applied to your drop
+u32  ackSeq             seq of the last Input applied to (or skipped for) your drop
 pos  cloudX ; pos cloudY
 u8   flags              bit 0: you are alive
 if alive:  f32 x, f32 y, f32 vx, f32 vy, f32 wetness, rgb color

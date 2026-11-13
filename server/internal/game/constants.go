@@ -50,6 +50,15 @@ const (
 
 	SpawnMargin     = 150.0 // spawns keep this far from the page edge
 	SpawnCandidates = 16    // random spots tried per spawn; the loneliest wins
+
+	// InputBuffer is how many Inputs the queue settles on holding back
+	// between steps, once one has arrived late; it absorbs that many ticks
+	// of late arrival. One queued Input is applied per step.
+	InputBuffer = 1
+	// InputSlack is how many more are tolerated (early arrivals) before the
+	// oldest are skipped down to InputBuffer, bounding how far the server
+	// trails the client.
+	InputSlack = 1
 )
 
 // Water.
