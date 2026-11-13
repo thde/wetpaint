@@ -147,7 +147,7 @@ The `Dockerfile` image contains the server (serving the client) and the
 ```sh
 nctl create project org-wetpaint --wait
 nctl auth set-project org-wetpaint
-nctl create kvs wetpaint --wait
+nctl create kvs wetpaint --memory-size 256Mi --wait
 nctl create app wetpaint \
   --git-url https://github.com/thde/wetpaint.git \
   --build-type dockerfile \
