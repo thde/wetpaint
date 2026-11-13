@@ -1,0 +1,3 @@
+[default.extend-words]
+# Input axis, paired with ix.
+iy = "iy"

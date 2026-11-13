@@ -1,0 +1,42 @@
+# Local development: Go server (with Valkey), Vite dev server, Valkey.
+#
+#   docker compose up            → play at http://localhost:5173 (hot reload)
+#                                  or http://localhost:8080 (built client)
+#
+# To run without Valkey, drop the "-valkey" argument below (or just run the
+# server binary directly; Valkey is off by default).
+services:
+  valkey:
+    image: valkey/valkey:9-alpine
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  server:
+    build: .
+    command: ["/usr/local/bin/wetpaint", "-static", "/static", "-valkey", "valkey:6379"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      valkey:
+        condition: service_healthy
+
+  client:
+    image: oven/bun:1-alpine
+    working_dir: /app/client
+    command: sh -c "bun install && bun run dev"
+    environment:
+      VITE_SERVER: http://server:8080
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app/client
+      - ./protocol:/app/protocol:ro
+      - client_node_modules:/app/client/node_modules
+    depends_on:
+      - server
+
+volumes:
+  client_node_modules:

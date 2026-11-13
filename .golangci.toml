@@ -1,0 +1,112 @@
+#:schema https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+version = "2"
+
+[linters]
+
+enable = [
+    "revive",
+    "gocritic",
+    "gosec",
+    "bodyclose",
+    "canonicalheader",
+
+    # Error Handling & Bug Prevention
+    "err113",
+    "errname",
+    "wrapcheck",
+    "nilerr",
+    "makezero",
+    "prealloc",
+    "dogsled",
+    "unparam",
+    "staticcheck",
+
+    # Modern Go, Architecture
+    "copyloopvar",
+    "intrange",
+    "sloglint",
+    "loggercheck",
+    "perfsprint",
+    "exhaustive",
+    "exptostd",
+    "nolintlint",
+    "modernize",
+    "promlinter",
+
+    # Testing
+    "paralleltest",
+    "thelper",
+
+    # Context
+    "noctx",
+    "containedctx",
+    "contextcheck",
+
+    # Documentation
+    "godoclint",
+    "godot",
+]
+
+[linters.settings.errcheck]
+check-type-assertions = true
+
+[linters.settings.gocritic]
+enabled-tags = ["diagnostic", "experimental", "opinionated", "performance", "style"]
+
+[linters.settings.gocritic.settings.hugeParam]
+sizeThreshold = 2048
+
+[linters.settings.gocritic.settings.rangeValCopy]
+sizeThreshold = 2048
+
+[linters.settings.exhaustive]
+default-signifies-exhaustive = true
+
+[linters.settings.nolintlint]
+require-explanation = true
+require-specific = true
+
+# Errors from this module's own packages already carry their context.
+[linters.settings.wrapcheck]
+ignore-package-globs = ["github.com/thde/wetpaint/*"]
+
+[linters.settings.godoclint]
+require-doc = true
+
+[linters.settings.godot]
+scope = "toplevel"
+# Doc comments start with the (often lowercase) identifier they document.
+capital = false
+# Section separators such as "// ---- Client → server ----".
+exclude = ["^ ----"]
+
+# math/rand drives gameplay, bots and tests from seeded PCGs; nothing here is a secret.
+[[linters.exclusions.rules]]
+linters = ["gosec"]
+text = "G404:"
+
+# The wire codec packs bounded counts and reinterprets int8 as uint8 on purpose;
+# tests build fixtures from small known ranges.
+[[linters.exclusions.rules]]
+linters = ["gosec"]
+text = "G115:"
+path = "(_test\\.go|internal/protocol/)"
+
+# Fixture slices in tests are small; preallocating them only adds noise.
+[[linters.exclusions.rules]]
+linters = ["prealloc"]
+path = "_test\\.go"
+
+[[linters.exclusions.rules]]
+linters = ["errcheck"]
+source = "^\\s*defer\\s+"
+
+[formatters]
+enable = ["gci", "gofmt", "gofumpt", "goimports"]
+
+[formatters.settings.gci]
+sections = ["standard", "default", "localmodule"]
+
+[formatters.settings.gofumpt.extra]
+group-params = true
+clothe-returns = true

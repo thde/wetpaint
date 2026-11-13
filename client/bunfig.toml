@@ -1,0 +1,4 @@
+# Run package binaries (vite, vitest, tsc) on Bun instead of a `node` shebang,
+# so no Node.js install is needed.
+[run]
+bun = true

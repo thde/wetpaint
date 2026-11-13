@@ -1,0 +1,429 @@
+:root {
+  --paper: #f8f3e7;
+  --card: #fdfaf1;
+  --pencil: #55515c;
+  --pencil-soft: rgba(85, 81, 92, 0.55);
+  --hand: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --scribble: 'Caveat', 'Patrick Hand', cursive;
+  /* Uneven corner radii make a straight CSS border look hand-drawn. */
+  --wobbly: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wobbly-alt: 15px 225px 15px 255px / 255px 15px 225px 15px;
+  --edge: max(10px, env(safe-area-inset-left));
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--paper);
+  color: var(--pencil);
+  font-family: var(--hand);
+  font-size: 18px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* Behind the join card the live game is blurred, like wet paper. */
+.spectating #game {
+  filter: blur(5px);
+}
+
+.spectating .hud,
+.spectating .leaderboard {
+  display: none;
+}
+
+/* ---- shared sketchy pieces ---------------------------------------------- */
+
+.sketch-box {
+  background: rgba(253, 250, 241, 0.86);
+  border: 2px solid var(--pencil);
+  border-radius: var(--wobbly-alt);
+}
+
+.sketch-button {
+  padding: 4px 14px;
+  background: var(--card);
+  border: 2px solid var(--pencil);
+  border-radius: var(--wobbly);
+  box-shadow: 2px 3px 0 rgba(85, 81, 92, 0.2);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transform: rotate(-1.5deg);
+  transition: transform 0.12s ease;
+}
+
+.sketch-button:nth-of-type(even) {
+  transform: rotate(1.2deg);
+}
+
+.sketch-button:hover:not(:disabled) {
+  transform: rotate(0.5deg) scale(1.04);
+}
+
+.sketch-button:active:not(:disabled) {
+  transform: translate(2px, 3px);
+  box-shadow: none;
+}
+
+.sketch-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.sketch-button.big {
+  margin-top: 14px;
+  padding: 8px 30px;
+  background: #cfe6f3;
+  font-size: 28px;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px dashed var(--pencil);
+  outline-offset: 3px;
+}
+
+/* ---- cards --------------------------------------------------------------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(248, 243, 231, 0.3);
+}
+
+/* The death card leaves the sheet visible so you can admire your bloom. */
+.overlay.clear {
+  background: none;
+  pointer-events: none;
+}
+
+.card {
+  width: min(360px, 100%);
+  padding: 18px 26px 24px;
+  background: var(--card);
+  border: 2.5px solid var(--pencil);
+  border-radius: var(--wobbly);
+  box-shadow: 5px 7px 0 rgba(85, 81, 92, 0.16);
+  text-align: center;
+  transform: rotate(-1deg);
+  pointer-events: auto;
+}
+
+.death-card {
+  transform: rotate(1.2deg);
+  animation: settle 0.5s ease-out;
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(18px) rotate(4deg);
+  }
+}
+
+.title {
+  margin: 0;
+  font-family: var(--scribble);
+  font-size: 68px;
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(-3deg);
+  /* A dab of watercolour behind the lettering. */
+  background:
+    radial-gradient(ellipse 46% 38% at 34% 58%, rgba(132, 190, 226, 0.5), transparent 70%),
+    radial-gradient(ellipse 40% 34% at 68% 50%, rgba(242, 160, 170, 0.45), transparent 70%);
+}
+
+.title.small {
+  font-size: 44px;
+}
+
+.tagline,
+.epitaph {
+  margin: 8px 0 14px;
+  line-height: 1.25;
+}
+
+.hint {
+  margin: 14px 0 6px;
+  color: var(--pencil-soft);
+  transform: rotate(0.6deg);
+}
+
+.hint.small {
+  margin-bottom: 0;
+  font-size: 15px;
+}
+
+.name-input {
+  width: 100%;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2.5px solid var(--pencil);
+  border-radius: 0 0 40px 12px / 0 0 6px 4px;
+  color: inherit;
+  font: inherit;
+  font-size: 26px;
+  text-align: center;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.name-input::placeholder {
+  color: rgba(85, 81, 92, 0.35);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.swatch {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: var(--paint, var(--card));
+  border: 2px solid var(--pencil);
+  border-radius: 47% 53% 44% 56% / 55% 46% 54% 45%;
+  /* Paint pools at the edge of a dab. */
+  box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.08);
+  color: inherit;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+
+.swatch:nth-child(odd) {
+  border-radius: 55% 45% 52% 48% / 46% 54% 45% 55%;
+  transform: rotate(-6deg);
+}
+
+.swatch:nth-child(3n) {
+  transform: rotate(8deg);
+}
+
+.swatch[aria-checked='true'] {
+  border-width: 3.5px;
+  transform: scale(1.22) rotate(-3deg);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 18px;
+  margin: 0 8px;
+  text-align: left;
+}
+
+.stats dt {
+  color: var(--pencil-soft);
+}
+
+.stats dd {
+  margin: 0;
+  font-size: 22px;
+  text-align: right;
+}
+
+/* ---- HUD ----------------------------------------------------------------- */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud > * {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.tools {
+  top: max(10px, env(safe-area-inset-top));
+  left: var(--edge);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 16px;
+}
+
+.gauge {
+  line-height: 0;
+}
+
+.minimap {
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: var(--edge);
+  width: 148px;
+  height: 111px;
+  transform: rotate(-1.5deg);
+  pointer-events: none;
+}
+
+/* Like the number in the corner of a sketchbook page. */
+.page-number {
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  font-family: var(--scribble);
+  font-size: 32px;
+  opacity: 0.6;
+  transform: rotate(-5deg);
+  pointer-events: none;
+}
+
+.status {
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  padding: 4px 16px;
+  transform: translateX(-50%) rotate(-1deg);
+}
+
+/* ---- leaderboard --------------------------------------------------------- */
+
+.leaderboard {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  width: 224px;
+  padding: 6px 12px 10px;
+  font-size: 16px;
+  transform: rotate(0.8deg);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+
+.tab {
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--pencil-soft);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  border-bottom-color: var(--pencil);
+  border-radius: 0 0 30px 8px / 0 0 5px 3px;
+  color: var(--pencil);
+}
+
+.leaderboard h3 {
+  margin: 6px 0 0;
+  font-family: var(--scribble);
+  font-size: 20px;
+  font-weight: 700;
+  transform: rotate(-1.5deg);
+}
+
+.leaderboard ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leaderboard li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1.25;
+}
+
+.leaderboard .rank {
+  width: 1.1em;
+  color: var(--pencil-soft);
+}
+
+.leaderboard .dot {
+  flex: none;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--pencil);
+  border-radius: 50% 44% 52% 46%;
+}
+
+.leaderboard .who {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard .empty {
+  color: var(--pencil-soft);
+}
+
+@media (max-width: 640px) {
+  .leaderboard {
+    width: 156px;
+    padding: 4px 8px 6px;
+    font-size: 13px;
+  }
+
+  .tab {
+    font-size: 12px;
+  }
+
+  .leaderboard h3 {
+    font-size: 16px;
+  }
+
+  /* On a phone there is only room for who is dripping right now. */
+  .leaderboard h3:nth-of-type(n + 2),
+  .leaderboard ol:nth-of-type(n + 2) {
+    display: none;
+  }
+
+  .minimap {
+    width: 104px;
+    height: 78px;
+  }
+
+  .title {
+    font-size: 54px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .death-card {
+    animation: none;
+  }
+}

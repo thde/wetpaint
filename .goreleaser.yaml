@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+version: 2
+project_name: wetpaint
+env:
+  - KO_DOCKER_REPO=ghcr.io/{{ .Env.GITHUB_REPOSITORY }}
+before:
+  hooks:
+    - go -C server mod tidy
+    # Build the client into the server's kodata directory: ko copies it into
+    # the image at $KO_DATA_PATH, which the server serves by default.
+    - bun install --cwd client --frozen-lockfile
+    - bun run --cwd client build --outDir ../server/cmd/server/kodata --emptyOutDir
+builds:
+  - id: wetpaint
+    binary: wetpaint
+    dir: server
+    main: ./cmd/server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
+archives:
+  - ids:
+      - wetpaint
+report_sizes: true
+kos:
+  - build: wetpaint
+    working_dir: server
+    main: ./cmd/server
+    base_image: cgr.dev/chainguard/static
+    bare: true
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    tags:
+      - latest
+      - "{{.Tag}}"
+    creation_time: "{{.CommitTimestamp}}"
