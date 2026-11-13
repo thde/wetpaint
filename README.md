@@ -166,7 +166,7 @@ Bots run as a worker job. Deploio doesn't inject the app URL, so set it:
 nctl update app wetpaint \
   --env WETPAINT_URL=wss://<host>/ws \
   --worker-job-name bots \
-  --worker-job-command "/usr/local/bin/wetpaint-bots -n 30" \
+  --worker-job-command "/usr/local/bin/wetpaint-bots -n 10" \
   --worker-job-size mini
 ```
 
